@@ -149,7 +149,7 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 	for _, extension := range cert.Extensions {
 		switch {
 		case extension.Id.Equal(x509.OIDExtensionAuthorityKeyId):
-			leafCert.Extensions.AuthorityKeyIdentifier = formatKeyID(cert.AuthorityKeyId)
+			leafCert.Extensions.AuthorityKeyIdentifier = formatKeyIDShort(cert.AuthorityKeyId)
 		case extension.Id.Equal(x509.OIDExtensionKeyUsage):
 			keyUsage := keyUsageToString(cert.KeyUsage)
 			leafCert.Extensions.KeyUsage = &keyUsage
