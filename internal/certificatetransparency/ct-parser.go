@@ -205,32 +205,32 @@ func buildSubject(certSubject pkix.Name) certstream.Subject {
 		ST: parseName(certSubject.StreetAddress),
 	}
 
-	var aggregated string
+	var aggregated = fmt.Sprintf("%+v", certSubject.Names)
+	/*
+		if subject.C != nil {
+			aggregated += fmt.Sprintf("/C=%s", *subject.C)
+		}
 
-	if subject.C != nil {
-		aggregated += fmt.Sprintf("/C=%s", *subject.C)
-	}
+		if subject.CN != nil {
+			aggregated += fmt.Sprintf("/CN=%s", *subject.CN)
+		}
 
-	if subject.CN != nil {
-		aggregated += fmt.Sprintf("/CN=%s", *subject.CN)
-	}
+		if subject.L != nil {
+			aggregated += fmt.Sprintf("/L=%s", *subject.L)
+		}
 
-	if subject.L != nil {
-		aggregated += fmt.Sprintf("/L=%s", *subject.L)
-	}
+		if subject.O != nil {
+			aggregated += fmt.Sprintf("/O=%s", *subject.O)
+		}
 
-	if subject.O != nil {
-		aggregated += fmt.Sprintf("/O=%s", *subject.O)
-	}
+		if subject.OU != nil {
+			aggregated += fmt.Sprintf("/OU=%s", *subject.OU)
+		}
 
-	if subject.OU != nil {
-		aggregated += fmt.Sprintf("/OU=%s", *subject.OU)
-	}
-
-	if subject.ST != nil {
-		aggregated += fmt.Sprintf("/ST=%s", *subject.ST)
-	}
-
+		if subject.ST != nil {
+			aggregated += fmt.Sprintf("/ST=%s", *subject.ST)
+		}
+	*/
 	subject.Aggregated = &aggregated
 
 	return subject
