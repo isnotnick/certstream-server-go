@@ -2,6 +2,9 @@ package certificatetransparency
 
 import (
 	"bytes"
+	"crypto/dsa"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/sha1" //nolint:gosec
 	"crypto/sha256"
 	"encoding/base64"
@@ -11,6 +14,7 @@ import (
 	"hash"
 	"log"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -114,6 +118,7 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 		NotBefore:          cert.NotBefore.Unix(),
 		SerialNumber:       formatSerialNumber(cert.SerialNumber),
 		SignatureAlgorithm: parseSignatureAlgorithm(cert.SignatureAlgorithm),
+		KeyType:            parseKeyType(cert.PublicKeyAlgorithm, cert.RawSubjectPublicKeyInfo),
 		IsCA:               cert.IsCA,
 	}
 
@@ -316,6 +321,41 @@ func calculateSHA1(data []byte) string {
 // calculateSHA256 calculates the SHA256 fingerprint of the given data.
 func calculateSHA256(data []byte) string {
 	return calculateHash(data, sha256.New())
+}
+
+// Calculate key type and size
+func parseKeyType(keyAlg x509.PublicKeyAlgorithm, rawKey []byte) string {
+	switch keyAlg {
+	case 0:
+		return "Unknown"
+	case 1:
+		rsaKey, err := x509.ParsePKIXPublicKey(rawKey)
+		if err == nil {
+			rsaPub := rsaKey.(*rsa.PublicKey)
+			KeySize := rsaPub.N
+			keySizeBits := strconv.Itoa(KeySize.BitLen())
+			return "RSA" + keySizeBits
+		}
+	case 2:
+		dsaKey, err := x509.ParsePKIXPublicKey(rawKey)
+		if err == nil {
+			dsaPub := dsaKey.(*dsa.PublicKey)
+			KeySize := dsaPub.Y
+			keySizeBits := strconv.Itoa(KeySize.BitLen())
+			return "DSA" + keySizeBits
+		}
+	case 3:
+		ecdsaKey, err := x509.ParsePKIXPublicKey(rawKey)
+		if err == nil {
+			ecdsaPub := ecdsaKey.(*ecdsa.PublicKey)
+			KeySize := ecdsaPub.X
+			keySizeBits := strconv.Itoa(KeySize.BitLen())
+			return "ECDSA" + keySizeBits
+		}
+	default:
+		return "Unknown"
+	}
+	return "Unknown"
 }
 
 func parseSignatureAlgorithm(signatureAlgoritm x509.SignatureAlgorithm) string {

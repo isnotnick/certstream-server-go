@@ -114,6 +114,7 @@ type LeafCert struct {
 	NotBefore          int64      `json:"not_before"`
 	SerialNumber       string     `json:"serial_number"`
 	SignatureAlgorithm string     `json:"signature_algorithm"`
+	KeyType            string     `json:"key_type"`
 	Subject            Subject    `json:"subject"`
 	Issuer             Subject    `json:"issuer"`
 	IsCA               bool       `json:"is_ca"`
