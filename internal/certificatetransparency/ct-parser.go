@@ -251,6 +251,14 @@ func formatKeyID(keyID []byte) *string {
 	return &digest
 }
 
+// formatKeyIDShort transforms the AuthorityKeyIdentifier to be more readable.
+func formatKeyIDShort(keyID []byte) *string {
+	tmp := hex.EncodeToString(keyID)
+	digest := strings.ToLower(tmp)
+
+	return &digest
+}
+
 func formatSerialNumber(serialNumber *big.Int) string {
 	sn := fmt.Sprintf("%X", serialNumber)
 	if len(sn)%2 == 1 {
