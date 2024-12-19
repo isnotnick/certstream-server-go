@@ -128,12 +128,18 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 	}
 
 	leafCert.Subject = buildSubject(cert.Subject)
+	wildcardCount := 0
 	if *leafCert.Subject.CN != "" && !leafCert.IsCA {
 		domainAlreadyAdded := false
 		// TODO check if CN matches domain regex
 		for _, domain := range leafCert.AllDomains {
 			if domain == *leafCert.Subject.CN {
 				domainAlreadyAdded = true
+				//	Check for wildcards
+				if strings.Contains(domain, "*.") {
+					leafCert.CertType = "Wildcard"
+					wildcardCount++
+				}
 				break
 			}
 		}
@@ -219,6 +225,19 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 	if strings.Contains(*leafCert.Subject.Aggregated, "1.3.6.1.4.1.311.60.2.1.3") {
 		leafCert.ValidationType = "EV"
 	}
+
+	//	Certificate 'type' determination and SAN/domain information - already checked for wildcards above
+	if len(leafCert.AllDomains) > 2 {
+		leafCert.CertType = "Multi"
+	} else if leafCert.CertType != "Wildcard" {
+		leafCert.CertType = "Single"
+	}
+
+	//	cert_type_ext is san count and number of single/wildcards
+	//	TODO: Detect and split iPAddresses in the SAN
+	leafCert.CertTypeExt.SANCount = len(leafCert.AllDomains)
+	leafCert.CertTypeExt.WildcardSANCount = wildcardCount
+	leafCert.CertTypeExt.SingleSANCount = leafCert.CertTypeExt.SANCount - leafCert.CertTypeExt.WildcardSANCount
 
 	return leafCert
 }
