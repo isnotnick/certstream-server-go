@@ -14,11 +14,14 @@ import (
 	"hash"
 	"log"
 	"math/big"
+	"net"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/d-Rickyy-b/certstream-server-go/internal/certstream"
+
+	psl "golang.org/x/net/publicsuffix"
 
 	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/x509"
@@ -129,15 +132,28 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 
 	leafCert.Subject = buildSubject(cert.Subject)
 	wildcardCount := 0
+	regDomainSlice := []string{}
 	if *leafCert.Subject.CN != "" && !leafCert.IsCA {
 		domainAlreadyAdded := false
 		// TODO check if CN matches domain regex
 		for _, domain := range leafCert.AllDomains {
 			//	Check for wildcards
-			if strings.Contains(domain, "*.") {
-				leafCert.CertType = "Wildcard"
+			if strings.Contains(domain, "*") {
 				wildcardCount++
 			}
+			//	Extract 'registerable domain' or 'effective domain plus one' from each SAN
+			isIP := net.ParseIP(domain)
+			if isIP == nil {
+				regDomain, err := psl.EffectiveTLDPlusOne(domain)
+				if err != nil {
+					regDomainSlice = append(regDomainSlice, domain)
+				} else {
+					regDomainSlice = append(regDomainSlice, regDomain)
+				}
+			} else {
+				regDomainSlice = append(regDomainSlice, domain)
+			}
+
 			if domain == *leafCert.Subject.CN {
 				domainAlreadyAdded = true
 				break
@@ -227,9 +243,11 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 	}
 
 	//	Certificate 'type' determination and SAN/domain information - already checked for wildcards above
-	if len(leafCert.AllDomains) > 2 {
+	if wildcardCount > 0 {
+		leafCert.CertType = "Wildcard"
+	} else if len(leafCert.AllDomains) > 2 {
 		leafCert.CertType = "Multi"
-	} else if leafCert.CertType != "Wildcard" {
+	} else {
 		leafCert.CertType = "Single"
 	}
 
@@ -238,6 +256,17 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 	leafCert.CertTypeExt.SANCount = len(leafCert.AllDomains)
 	leafCert.CertTypeExt.WildcardSANCount = wildcardCount
 	leafCert.CertTypeExt.SingleSANCount = leafCert.CertTypeExt.SANCount - leafCert.CertTypeExt.WildcardSANCount
+
+	// De-duplicate the reg-domain slice
+	seenRegDomain := map[string]bool{}
+	var regDomainResult []string
+	for v := range regDomainSlice {
+		if !seenRegDomain[regDomainSlice[v]] {
+			seenRegDomain[regDomainSlice[v]] = true
+			regDomainResult = append(regDomainResult, regDomainSlice[v])
+		}
+	}
+	leafCert.AllRegDomains = regDomainResult
 
 	return leafCert
 }
