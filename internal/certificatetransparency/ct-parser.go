@@ -404,37 +404,37 @@ func parseKeyType(keyAlg x509.PublicKeyAlgorithm, rawKey []byte) string {
 func parseSignatureAlgorithm(signatureAlgoritm x509.SignatureAlgorithm) string {
 	switch signatureAlgoritm {
 	case x509.MD2WithRSA:
-		return "md2, rsa"
+		return "MD2WithRSA"
 	case x509.MD5WithRSA:
-		return "md5, rsa"
+		return "MD5WithRSA"
 	case x509.SHA1WithRSA:
-		return "sha1, rsa"
+		return "SHA1WithRSA"
 	case x509.SHA256WithRSA:
-		return "sha256, rsa"
+		return "SHA256WithRSA"
 	case x509.SHA384WithRSA:
-		return "sha384, rsa"
+		return "SHA384WithRSA"
 	case x509.SHA512WithRSA:
-		return "sha512, rsa"
+		return "SHA512WithRSA"
 	case x509.SHA256WithRSAPSS:
-		return "sha256, rsa-pss"
+		return "SHA256WithRSAPSS"
 	case x509.SHA384WithRSAPSS:
-		return "sha384, rsa-pss"
+		return "SHA384WithRSAPSS"
 	case x509.SHA512WithRSAPSS:
-		return "sha512, rsa-pss"
+		return "SHA512WithRSAPSS"
 	case x509.DSAWithSHA1:
-		return "dsa, sha1"
+		return "DSAWithSHA1"
 	case x509.DSAWithSHA256:
-		return "dsa, sha256"
+		return "DSAWithSHA256"
 	case x509.ECDSAWithSHA1:
-		return "ecdsa, sha1"
+		return "ECDSAWithSHA1"
 	case x509.ECDSAWithSHA256:
-		return "ecdsa, sha256"
+		return "ECDSAWithSHA256"
 	case x509.ECDSAWithSHA384:
-		return "ecdsa, sha384"
+		return "ECDSAWithSHA384"
 	case x509.ECDSAWithSHA512:
-		return "ecdsa, sha512"
+		return "ECDSAWithSHA512"
 	case x509.PureEd25519:
-		return "ed25519"
+		return "PureEd25519"
 	case x509.UnknownSignatureAlgorithm:
 		fallthrough
 	default:
