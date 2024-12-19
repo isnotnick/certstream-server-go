@@ -133,13 +133,13 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 		domainAlreadyAdded := false
 		// TODO check if CN matches domain regex
 		for _, domain := range leafCert.AllDomains {
+			//	Check for wildcards
+			if strings.Contains(domain, "*.") {
+				leafCert.CertType = "Wildcard"
+				wildcardCount++
+			}
 			if domain == *leafCert.Subject.CN {
 				domainAlreadyAdded = true
-				//	Check for wildcards
-				if strings.Contains(domain, "*.") {
-					leafCert.CertType = "Wildcard"
-					wildcardCount++
-				}
 				break
 			}
 		}
