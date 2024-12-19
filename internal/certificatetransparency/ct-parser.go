@@ -196,6 +196,30 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 		}
 	}
 
+	//	Certificate validation type determination
+	//	Try some of the policy OIDs that some CAs add
+	leafCert.ValidationType = "OV"
+	PolicyOIDSString := fmt.Sprintf("%d", cert.PolicyIdentifiers)
+	if strings.Contains(PolicyOIDSString, "2.23.140.1.2.1") {
+		leafCert.ValidationType = "DV"
+	} else if strings.Contains(PolicyOIDSString, "2.23.140.1.2.2") {
+		leafCert.ValidationType = "OV"
+	} else if strings.Contains(PolicyOIDSString, "2.23.140.1.2.3") {
+		leafCert.ValidationType = "IV"
+	} else if strings.Contains(PolicyOIDSString, "2.23.140.1.1") {
+		leafCert.ValidationType = "EV"
+	}
+	//	Now some basic checks
+	//	No Subject O - it's a DV
+	if leafCert.Subject.O == nil {
+		leafCert.ValidationType = "DV"
+	}
+
+	//	There's a 'jurisdictionC' in the Subject, so it's an EV
+	if strings.Contains(*leafCert.Subject.Aggregated, "1.3.6.1.4.1.311.60.2.1.3") {
+		leafCert.ValidationType = "EV"
+	}
+
 	return leafCert
 }
 

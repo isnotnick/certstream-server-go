@@ -115,6 +115,8 @@ type LeafCert struct {
 	SerialNumber       string     `json:"serial_number"`
 	SignatureAlgorithm string     `json:"signature_algorithm"`
 	KeyType            string     `json:"key_type"`
+	CertType           string     `json:"cert_type"`
+	ValidationType     string     `json:"validation_type"`
 	Subject            Subject    `json:"subject"`
 	Issuer             Subject    `json:"issuer"`
 	IsCA               bool       `json:"is_ca"`
