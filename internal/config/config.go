@@ -39,6 +39,9 @@ type Config struct {
 		MetricsURL          string `yaml:"metrics_url"`
 		ExposeSystemMetrics bool   `yaml:"expose_system_metrics"`
 	}
+	CTLogs struct {
+		StartIndex []string `yaml:"startindex"`
+	}
 }
 
 // ReadConfig reads the config file and returns a filled Config struct.

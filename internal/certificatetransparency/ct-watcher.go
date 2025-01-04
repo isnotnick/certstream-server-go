@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -227,11 +228,24 @@ func (w *worker) runWorker(ctx context.Context) error {
 		return errFetchingSTHFailed
 	}
 
+	//	Check if the log is in the config file with a specific index to start at. If so, use it (checking it's bigger than 0 and smaller than the current tree size!)
+	logStart := int64(sth.TreeSize)
+
+	for _, element := range config.AppConfig.CTLogs.StartIndex {
+		if strings.Contains(w.ctURL, element) {
+			logStartIndex := strings.Split(element, " ")
+			newStartIndex, _ := strconv.Atoi(logStartIndex[1])
+			if newStartIndex > 0 {
+				logStart = int64(newStartIndex)
+			}
+		}
+	}
+
 	certScanner := scanner.NewScanner(jsonClient, scanner.ScannerOptions{
 		FetcherOptions: scanner.FetcherOptions{
 			BatchSize:     100,
 			ParallelFetch: 1,
-			StartIndex:    int64(sth.TreeSize), // Start at the latest STH to skip all the past certificates
+			StartIndex:    logStart, // Start at the latest STH to skip all the past certificates
 			Continuous:    true,
 		},
 		Matcher:     scanner.MatchAll{},
