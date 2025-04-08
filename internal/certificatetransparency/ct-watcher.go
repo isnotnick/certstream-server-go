@@ -2,6 +2,9 @@ package certificatetransparency
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/csv"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -28,6 +31,7 @@ var (
 	errCreatingClient    = errors.New("failed to create JSON client")
 	errFetchingSTHFailed = errors.New("failed to fetch STH")
 	userAgent            = fmt.Sprintf("Certstream Server v%s (github.com/d-Rickyy-b/certstream-server-go)", config.Version)
+	CAOwners             = make(map[string]string)
 )
 
 // Watcher describes a component that watches for new certificates in a CT log.
@@ -70,10 +74,11 @@ func (w *Watcher) Start() {
 // This method is blocking. It can be stopped by cancelling the context.
 func (w *Watcher) watchNewLogs() {
 	// Add all available logs to the watcher
-	w.addNewlyAvailableLogs()
+	//w.addNewlyAvailableLogs()
 
 	// Check for new logs once every hour
-	ticker := time.NewTicker(1 * time.Hour)
+	//	EDIT - do it ever 6 hours
+	ticker := time.NewTicker(6 * time.Hour)
 	for {
 		select {
 		case <-ticker.C:
@@ -87,7 +92,17 @@ func (w *Watcher) watchNewLogs() {
 
 // The transparency log list is constantly updated with new Log servers.
 // This function checks for new ct logs and adds them to the watcher.
+//
+//	ADDED: This will load a list of all the 'trusted' CAs from CCADB, parse the AKIs and 'ca owners' into a map.
 func (w *Watcher) addNewlyAvailableLogs() {
+	log.Println("Checking for new cas from ccadb...")
+	ccadbURL := "https://ccadb.my.salesforce-sites.com/ccadb/AllCertificateRecordsCSVFormatv2"
+
+	//	Download and parse the CSV - the columns we want in the map are 1 - the 'CA Owner' and 19 - SKI. Which is b64-encoded-hex.
+	CAOwners, _ = DownloadAndParseCSV(ccadbURL, 18, 0, true)
+
+	log.Printf("Got ccadb file - loaded %v icas...\n", len(CAOwners))
+
 	log.Println("Checking for new ct logs...")
 
 	// Get a list of urls of all CT logs
@@ -359,4 +374,102 @@ func normalizeCtlogURL(input string) string {
 	input = strings.TrimSuffix(input, "/")
 
 	return input
+}
+
+func DownloadAndParseCSV(url string, keyColIndex, valueColIndex int, skipHeader bool) (map[string]string, error) {
+	// Initialize result map
+	result := make(map[string]string)
+
+	// Maximum number of retry attempts
+	maxRetries := 3
+	// Initial delay between retries (will be increased exponentially)
+	retryDelay := 1 * time.Second
+
+	var resp *http.Response
+	var err error
+
+	// Retry logic for the HTTP request
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Create HTTP client with timeout
+		client := &http.Client{
+			Timeout: 30 * time.Second,
+		}
+
+		// Make the request
+		resp, err = client.Get(url)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			break // Success, exit the retry loop
+		}
+
+		// Check if we should retry
+		if attempt == maxRetries {
+			if err != nil {
+				return nil, fmt.Errorf("failed to download CSV after %d attempts: %w", maxRetries, err)
+			}
+			return nil, fmt.Errorf("failed to download CSV after %d attempts: status code %d", maxRetries, resp.StatusCode)
+		}
+
+		// If we got a response but it wasn't successful, close the body
+		if err == nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+
+		// Wait before retrying with exponential backoff
+		time.Sleep(retryDelay)
+		retryDelay *= 2 // Exponential backoff
+	}
+
+	// Don't forget to close the response body when we're done
+	defer resp.Body.Close()
+
+	// Parse the CSV data
+	reader := csv.NewReader(resp.Body)
+
+	// Read the first row to check column indices and handle header
+	firstRow, err := reader.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CSV first row: %w", err)
+	}
+
+	// Validate column indices
+	if keyColIndex < 0 || keyColIndex >= len(firstRow) {
+		return nil, fmt.Errorf("key column index %d is out of range (0-%d)", keyColIndex, len(firstRow)-1)
+	}
+	if valueColIndex < 0 || valueColIndex >= len(firstRow) {
+		return nil, fmt.Errorf("value column index %d is out of range (0-%d)", valueColIndex, len(firstRow)-1)
+	}
+
+	// If not skipping header, add the first row to the result
+	if !skipHeader {
+		result[firstRow[keyColIndex]] = firstRow[valueColIndex]
+	}
+
+	// Read the rest of the CSV and populate the map
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break // End of file
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error reading CSV record: %w", err)
+		}
+
+		// Convert decoded bytes to lowercase hex without separators
+		decodedBytes, _ := base64.StdEncoding.DecodeString(record[keyColIndex])
+		hexKey := hex.EncodeToString(decodedBytes)
+		hexKey = strings.ToLower(hexKey)
+		// Add the key-value pair to our map
+		result[hexKey] = record[valueColIndex]
+
+		//log.Printf("CCADB: AKI b64: %v | AKI decoded: %v | CAOwner: %v\n", record[keyColIndex], hexKey, record[valueColIndex])
+	}
+
+	//	Simple summary of the CCADB data
+	counter := make(map[string]int)
+	for _, caName := range result {
+		counter[caName]++
+	}
+	log.Printf("CCADB: Loaded data. Found %v entries for %v distinct CA owners\n", len(result), len(counter))
+
+	return result, nil
 }

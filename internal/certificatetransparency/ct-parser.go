@@ -268,6 +268,15 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 	}
 	leafCert.AllRegDomains = regDomainResult
 
+	//	CA owner from the periodically-updated Owner map
+	leafAKI := *formatKeyIDShort(cert.AuthorityKeyId)
+	caOwnerCheck, ok := CAOwners[leafAKI]
+	if ok {
+		leafCert.CAOwner = caOwnerCheck
+	} else {
+		leafCert.CAOwner = "unknown"
+	}
+
 	return leafCert
 }
 

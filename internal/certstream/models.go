@@ -121,6 +121,7 @@ type LeafCert struct {
 	ValidationType     string      `json:"validation_type"`
 	Subject            Subject     `json:"subject"`
 	Issuer             Subject     `json:"issuer"`
+	CAOwner            string      `json:"ca_owner"`
 	IsCA               bool        `json:"is_ca"`
 }
 
