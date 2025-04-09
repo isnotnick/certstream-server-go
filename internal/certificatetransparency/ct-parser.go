@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash"
@@ -27,6 +28,20 @@ import (
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509/pkix"
 )
+
+// JSON version of pkix.Name
+type JSONName struct {
+	CommonName         string        `json:"common_name,omitempty"`
+	SerialNumber       string        `json:"serial_number,omitempty"`
+	Country            string        `json:"country,omitempty"`
+	Organization       string        `json:"organization,omitempty"`
+	OrganizationalUnit string        `json:"organizational_unit,omitempty"`
+	Locality           string        `json:"locality,omitempty"`
+	Province           string        `json:"province,omitempty"`
+	StreetAddress      string        `json:"street_address,omitempty"`
+	PostalCode         string        `json:"postal_code,omitempty"`
+	Names              []interface{} `json:"names,omitempty"`
+}
 
 // parseData converts a *ct.RawLogEntry struct into a certstream.Data struct by copying some values and calculating others.
 func parseData(entry *ct.RawLogEntry, operatorName, logName, ctURL string) (certstream.Data, error) {
@@ -110,6 +125,27 @@ func parseCertificateChain(logEntry *ct.LogEntry) ([]certstream.LeafCert, error)
 	}
 
 	return chain, nil
+}
+
+// Parse Go's pkix.Name into a JSON
+func ParseNameJSON(name pkix.Name) JSONName {
+	n := JSONName{
+		CommonName:         name.CommonName,
+		SerialNumber:       name.SerialNumber,
+		Country:            strings.Join(name.Country, ","),
+		Organization:       strings.Join(name.Organization, ","),
+		OrganizationalUnit: strings.Join(name.OrganizationalUnit, ","),
+		Locality:           strings.Join(name.Locality, ","),
+		Province:           strings.Join(name.Province, ","),
+		StreetAddress:      strings.Join(name.StreetAddress, ","),
+		PostalCode:         strings.Join(name.PostalCode, ","),
+	}
+
+	for i := range name.Names {
+		n.Names = append(n.Names, name.Names[i].Value)
+	}
+
+	return n
 }
 
 // leafCertFromX509cert converts a x509.Certificate to the custom LeafCert data structure.
@@ -290,8 +326,6 @@ func buildSubject(certSubject pkix.Name) certstream.Subject {
 		OU: parseName(certSubject.OrganizationalUnit),
 		ST: parseName(certSubject.StreetAddress),
 	}
-
-	var aggregated = fmt.Sprintf("%+v", certSubject.Names)
 	/*
 		if subject.C != nil {
 			aggregated += fmt.Sprintf("/C=%s", *subject.C)
@@ -317,7 +351,9 @@ func buildSubject(certSubject pkix.Name) certstream.Subject {
 			aggregated += fmt.Sprintf("/ST=%s", *subject.ST)
 		}
 	*/
-	subject.Aggregated = &aggregated
+	aggregatedJSON, _ := json.Marshal(ParseNameJSON(certSubject))
+	jsonSubject := string(aggregatedJSON)
+	subject.Aggregated = &jsonSubject
 
 	return subject
 }
