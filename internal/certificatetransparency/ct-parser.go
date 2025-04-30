@@ -192,7 +192,7 @@ func leafCertFromX509cert(cert x509.Certificate) certstream.LeafCert {
 
 			if domain == *leafCert.Subject.CN {
 				domainAlreadyAdded = true
-				break
+				//break
 			}
 		}
 
